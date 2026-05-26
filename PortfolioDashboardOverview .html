@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InvestTrack — Portfolio Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;600;700;800&display=swap');
+:root{--bg:#0a0c10;--surface:#111318;--surface2:#181c24;--border:#1e2430;--accent:#00e5a0;--accent2:#4f8ef7;--accent3:#f7c94f;--warn:#f75f4f;--text:#e8ecf4;--muted:#6b7891;--green:#00c87a;--red:#f75f4f;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+header{display:flex;align-items:center;justify-content:space-between;padding:1rem 2rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(10,12,16,0.97);backdrop-filter:blur(12px);z-index:200;gap:1rem;flex-wrap:wrap;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;letter-spacing:-0.02em;color:var(--accent);flex-shrink:0;}
+.logo span{color:var(--text);}
+nav{display:flex;gap:0.2rem;flex-wrap:wrap;}
+nav button{background:none;border:1px solid transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:0.68rem;padding:0.35rem 0.8rem;border-radius:6px;cursor:pointer;letter-spacing:0.05em;transition:all 0.2s;}
+nav button:hover,nav button.active{color:var(--text);border-color:var(--border);background:var(--surface);}
+nav button.active{color:var(--accent);border-color:var(--accent);}
+.hdr-right{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;}
+.bk-info{font-size:0.6rem;color:var(--muted);text-align:right;line-height:1.5;}
+.bk-info b{color:var(--accent3);}
+main{padding:1.5rem 2rem;max-width:1600px;margin:0 auto;}
+.section{display:none;}.section.active{display:block;}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:0.85rem;margin-bottom:1.5rem;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.3rem;position:relative;overflow:hidden;transition:border-color 0.2s;}
+.kpi:hover{border-color:var(--accent);}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kl,var(--accent));}
+.kpi-lbl{font-size:0.61rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.35rem;}
+.kpi-val{font-family:'Syne',sans-serif;font-weight:700;font-size:1.4rem;line-height:1;margin-bottom:0.18rem;}
+.kpi-sub{font-size:0.65rem;color:var(--muted);}
+.pos{color:var(--green);}.neg{color:var(--red);}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem;}
+.g3{display:grid;grid-template-columns:2fr 1fr;gap:1.2rem;margin-bottom:1.2rem;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.2rem;}
+.ct{font-family:'Syne',sans-serif;font-size:0.74rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--muted);margin-bottom:0.9rem;display:flex;align-items:center;gap:0.45rem;}
+.ct::before{content:'';display:block;width:5px;height:5px;border-radius:50%;background:var(--accent);}
+table{width:100%;border-collapse:collapse;font-size:0.7rem;}
+th{text-align:left;color:var(--muted);font-size:0.59rem;letter-spacing:0.08em;text-transform:uppercase;padding:0.42rem 0.55rem;border-bottom:1px solid var(--border);font-weight:500;}
+td{padding:0.5rem 0.55rem;border-bottom:1px solid rgba(30,36,48,0.45);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--surface2);}
+td:not(:first-child){text-align:right;}
+th:not(:first-child){text-align:right;}
+.bk{display:inline-block;padding:0.1rem 0.42rem;border-radius:3px;font-size:0.57rem;letter-spacing:0.03em;font-weight:600;text-transform:uppercase;}
+.bk-stock{background:rgba(79,142,247,0.15);color:var(--accent2);}
+.bk-etf{background:rgba(0,229,160,0.15);color:var(--accent);}
+.bk-crypto{background:rgba(247,201,79,0.15);color:var(--accent3);}
+.bk-bond{background:rgba(247,95,79,0.15);color:var(--warn);}
+.bk-greek{background:rgba(0,200,122,0.12);color:#00c87a;}
+.bk-usa{background:rgba(79,142,247,0.12);color:var(--accent2);}
+.bk-global{background:rgba(140,100,220,0.15);color:#a87aef;}
+.bk-buy{background:rgba(0,229,160,0.12);color:var(--accent);}
+.bk-sell{background:rgba(247,95,79,0.12);color:var(--warn);}
+.bk-dividend{background:rgba(247,201,79,0.12);color:var(--accent3);}
+.bk-corporate{background:rgba(140,100,220,0.12);color:#a87aef;}
+.ab{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:0.22rem;}
+.af{height:100%;border-radius:3px;transition:width 0.7s cubic-bezier(.4,0,.2,1);}
+.al-item{margin-bottom:0.75rem;}
+.al-hdr{display:flex;justify-content:space-between;font-size:0.67rem;}
+.alert{display:flex;align-items:flex-start;gap:0.65rem;padding:0.6rem 0.9rem;border-radius:7px;font-size:0.68rem;margin-bottom:0.55rem;border:1px solid;}
+.alert-warn{background:rgba(247,201,79,0.07);border-color:rgba(247,201,79,0.28);color:var(--accent3);}
+.alert-danger{background:rgba(247,95,79,0.07);border-color:rgba(247,95,79,0.28);color:var(--warn);}
+.alert-ok{background:rgba(0,229,160,0.05);border-color:rgba(0,229,160,0.22);color:var(--accent);}
+.fr{display:grid;gap:0.6rem;margin-bottom:0.7rem;}
+.fg label{display:block;font-size:0.57rem;color:var(--muted);letter-spacing:0.09em;text-transform:uppercase;margin-bottom:0.28rem;}
+.fg input,.fg select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.71rem;padding:0.42rem 0.65rem;outline:none;transition:border-color 0.2s;}
+.fg input:focus,.fg select:focus{border-color:var(--accent);}
+.btn{background:var(--accent);color:#000;border:none;border-radius:7px;font-family:'Syne',sans-serif;font-weight:700;font-size:0.67rem;letter-spacing:0.05em;padding:0.48rem 1rem;cursor:pointer;transition:opacity 0.2s,transform 0.1s;white-space:nowrap;}
+.btn:hover{opacity:0.85;}.btn:active{transform:scale(0.97);}
+.btn-out{background:none;border:1px solid var(--border);color:var(--muted);}
+.btn-out:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,229,160,0.05);}
+.btn-warn{background:var(--accent3);color:#000;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-blue{background:var(--accent2);color:#fff;}
+.btn-sm{padding:0.25rem 0.6rem;font-size:0.6rem;}
+.br{display:flex;gap:0.45rem;flex-wrap:wrap;align-items:center;}
+.pi{width:82px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.7rem;padding:0.28rem 0.45rem;outline:none;text-align:right;}
+.pi:focus{border-color:var(--accent);}
+.pi-chg{border-color:var(--accent3)!important;color:var(--accent3);}
+.sy{overflow-y:auto;max-height:420px;}
+.sy::-webkit-scrollbar{width:3px;}
+.sy::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.itabs{display:flex;gap:0.18rem;margin-bottom:0.9rem;flex-wrap:wrap;}
+.itab{background:none;border:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:0.62rem;padding:0.26rem 0.65rem;border-radius:5px;cursor:pointer;}
+.itab.active{color:var(--accent);border-color:var(--accent);background:rgba(0,229,160,0.05);}
+.pm{margin-bottom:1.2rem;}
+.pm-title{font-family:'Syne',sans-serif;font-size:0.71rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--accent);padding:0.32rem 0;border-bottom:1px solid var(--border);margin-bottom:0.6rem;display:flex;justify-content:space-between;align-items:center;}
+.pr{display:flex;align-items:center;gap:0.6rem;padding:0.42rem 0;border-bottom:1px solid rgba(30,36,48,0.38);font-size:0.68rem;}
+.pr-d{color:var(--muted);width:70px;flex-shrink:0;}
+.pr-v{font-family:'Syne',sans-serif;font-weight:600;width:82px;flex-shrink:0;}
+.pr-bw{flex:1;height:4px;background:var(--border);border-radius:2px;}
+.pr-bf{height:100%;border-radius:2px;background:var(--accent);}
+.pr-r{width:52px;text-align:right;}
+.sep{height:1px;background:var(--border);margin:1.1rem 0;}
+.tag{display:inline-block;padding:0.08rem 0.38rem;border-radius:3px;font-size:0.57rem;font-weight:600;letter-spacing:0.04em;}
+.tag-done{background:rgba(0,200,122,0.14);color:var(--green);}
+.tag-pend{background:rgba(107,120,145,0.14);color:var(--muted);}
+.pw{display:flex;align-items:center;gap:0.45rem;}
+.pb{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;}
+.pf{height:100%;border-radius:3px;}
+/* TOAST */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--surface);border:1px solid var(--accent);color:var(--text);font-family:'DM Mono',monospace;font-size:0.72rem;padding:0.75rem 1.25rem;border-radius:8px;z-index:9999;opacity:0;transform:translateY(10px);transition:all 0.3s;pointer-events:none;max-width:320px;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.error{border-color:var(--warn);}
+/* LIVE BADGE */
+.live{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:4px;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+@media(max-width:900px){main{padding:0.75rem;}.g2,.g3{grid-template-columns:1fr;}.kpi-grid{grid-template-columns:repeat(2,1fr);}.fr{grid-template-columns:1fr 1fr;}}
+@media(max-width:560px){.kpi-grid{grid-template-columns:1fr 1fr;}.kpi-val{font-size:1.1rem;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">INVEST<span>TRACK</span></div>
+  <nav id="mainNav">
+    <button class="active" onclick="go('overview',this)">ΣΥΝΟΨΗ</button>
+    <button onclick="go('prices',this)">ΤΙΜΕΣ</button>
+    <button onclick="go('holdings',this)">ΘΕΣΕΙΣ</button>
+    <button onclick="go('rebalance',this)">REBAL.</button>
+    <button onclick="go('dividends',this)">DIVIDENDS</button>
+    <button onclick="go('performance',this)">ΑΠΟΔΟΣΗ</button>
+    <button onclick="go('plan',this)">ΣΧΕΔΙΟ</button>
+    <button onclick="go('log',this)">📋 LOG</button>
+    <button onclick="go('backup',this)">💾 BACKUP</button>
+  </nav>
+  <div class="hdr-right">
+    <div class="bk-info">
+      <div>Backup: <b id="bkDate">—</b></div>
+      <div>Τιμές: <b id="prDate">—</b></div>
+    </div>
+  </div>
+</header>
+
+<div class="toast" id="toast"></div>
+
+<main>
+
+<!-- ========== OVERVIEW ========== -->
+<div class="section active" id="s-overview">
+  <div class="kpi-grid" id="kpiGrid"></div>
+  <div class="g2">
+    <div class="card"><div class="ct">Κατανομή Asset Class</div><div style="height:235px;"><canvas id="donutChart"></canvas></div></div>
+    <div class="card"><div class="ct">Κατανομή vs Στόχος</div><div id="allocBars"></div></div>
+  </div>
+  <div class="g3">
+    <div class="card"><div class="ct">Ιστορική Πορεία Portfolio</div><div style="height:205px;"><canvas id="perfChart"></canvas></div></div>
+    <div class="card"><div class="ct">🏆 Top Performers</div><div id="topPerf"></div></div>
+  </div>
+  <div class="card"><div class="ct">⚠️ Worst Performers</div><table><thead><tr><th>Asset</th><th>Class</th><th>ROI</th><th>P/L</th><th>Σημείωση</th></tr></thead><tbody id="worstBody"></tbody></table></div>
+</div>
+
+<!-- ========== PRICES ========== -->
+<div class="section" id="s-prices">
+  <div class="card" style="margin-bottom:1.2rem;">
+    <div class="ct">📊 Ενημέρωση Τιμών — Manual</div>
+    <p style="font-size:0.67rem;color:var(--muted);margin-bottom:0.9rem;">Άλλαξε τιμές στη στήλη "Νέα Τιμή" και πάτα <b style="color:var(--accent)">Apply</b>. Όλα τα KPIs, διαγράμματα και holdings ενημερώνονται αυτόματα.</p>
+    <div class="br" style="margin-bottom:0.9rem;">
+      <button class="btn" onclick="applyPrices()">✓ Apply Prices</button>
+      <button class="btn btn-out" onclick="resetPrices()">↺ Reset Default</button>
+      <span style="font-size:0.63rem;color:var(--muted);">Last updated: <span id="prUpdateTime" style="color:var(--accent3);">—</span></span>
+    </div>
+    <div class="sy" style="max-height:500px;">
+      <table><thead><tr><th>Asset</th><th>Sym</th><th>Class</th><th>Avg Buy</th><th>Τρέχ. Τιμή</th><th>Νέα Τιμή</th><th>% Αλλαγή</th></tr></thead>
+      <tbody id="priceTableBody"></tbody></table>
+    </div>
+  </div>
+  <div class="card"><div class="ct">📋 Price Update Log</div>
+    <div class="sy"><table><thead><tr><th>Ημερομηνία</th><th>Asset</th><th>Παλιά</th><th>Νέα</th><th>Μεταβολή</th></tr></thead>
+    <tbody id="priceLogBody"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ========== HOLDINGS ========== -->
+<div class="section" id="s-holdings">
+  <div style="display:flex;gap:0.45rem;margin-bottom:0.8rem;align-items:center;flex-wrap:wrap;">
+    <div class="itabs" id="hTabs">
+      <button class="itab active" onclick="fh('all',this)">ΟΛΑ</button>
+      <button class="itab" onclick="fh('Stock',this)">Stocks</button>
+      <button class="itab" onclick="fh('ETF',this)">ETFs</button>
+      <button class="itab" onclick="fh('Crypto',this)">Crypto</button>
+      <button class="itab" onclick="fh('Bond',this)">Bonds</button>
+      <button class="itab" onclick="fh('Greek',this)">🇬🇷 Greek</button>
+      <button class="itab" onclick="fh('USA',this)">🇺🇸 USA</button>
+    </div>
+    <input id="hSearch" placeholder="Αναζήτηση..." oninput="fh('srch',null)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:0.7rem;padding:0.3rem 0.6rem;border-radius:6px;outline:none;width:155px;">
+  </div>
+  <div class="card"><div class="sy">
+    <table><thead><tr><th>Asset</th><th>Sym</th><th>Class</th><th>Mkt</th><th>Τεμ.</th><th>Avg Buy</th><th>Τρέχ.</th><th>Επενδύθηκε</th><th>Αξία</th><th>P/L</th><th>ROI%</th><th>Dividends</th></tr></thead>
+    <tbody id="hBody"></tbody></table>
+  </div><div style="margin-top:0.65rem;font-size:0.67rem;color:var(--muted);" id="hSumm"></div></div>
+</div>
+
+<!-- ========== REBALANCE ========== -->
+<div class="section" id="s-rebalance">
+  <div class="card" style="margin-bottom:1.2rem;">
+    <div class="ct">🎯 Target vs Current</div>
+    <div id="rbAlerts" style="margin-bottom:0.9rem;"></div>
+    <div id="rbRows"></div>
+  </div>
+  <div class="card" style="margin-bottom:1.2rem;">
+    <div class="ct">⚙️ Στόχοι (%)</div>
+    <div class="fr" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));" id="tgtInputs"></div>
+    <div class="br" style="margin-top:0.65rem;"><button class="btn" onclick="saveTargets()">✓ Αποθήκευση</button></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="ct">Τρέχουσα</div><div style="height:215px;"><canvas id="rbCurChart"></canvas></div></div>
+    <div class="card"><div class="ct">Στόχος</div><div style="height:215px;"><canvas id="rbTgtChart"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ========== DIVIDENDS ========== -->
+<div class="section" id="s-dividends">
+  <div class="kpi-grid" id="divKpi"></div>
+  <div class="g2">
+    <div class="card"><div class="ct">Dividends ανά Asset</div>
+      <div class="sy"><table><thead><tr><th>Asset</th><th>Class</th><th>Επενδύθηκε</th><th>Σύνολο Div.</th><th>Yield on Cost</th></tr></thead>
+      <tbody id="divBody"></tbody></table></div>
+    </div>
+    <div class="card"><div class="ct">Κατανομή Dividends</div><div style="height:270px;"><canvas id="divChart"></canvas></div></div>
+  </div>
+  <div class="card" style="margin-top:1.2rem;"><div class="ct">📋 Dividend Log (από το unified Log)</div>
+    <div class="sy"><table><thead><tr><th>Ημερομηνία</th><th>Asset</th><th>Platform</th><th>Ποσό</th></tr></thead>
+    <tbody id="divLogView"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ========== PERFORMANCE ========== -->
+<div class="section" id="s-performance">
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+    <div class="kpi" style="--kl:var(--green)"><div class="kpi-lbl">Αρχική Βάση</div><div class="kpi-val">€43.805</div><div class="kpi-sub">2022–2023</div></div>
+    <div class="kpi" style="--kl:var(--accent)"><div class="kpi-lbl">Κορύφωση Σεπ'24</div><div class="kpi-val">€104.655</div><div class="kpi-sub pos">+138,9%</div></div>
+    <div class="kpi" style="--kl:var(--accent2)"><div class="kpi-lbl">Τρέχουσα</div><div class="kpi-val" id="pfCurVal">—</div><div class="kpi-sub pos" id="pfCurRoi">—</div></div>
+  </div>
+  <div class="card" style="margin-bottom:1.2rem;"><div class="ct">Ιστορικά Snapshots</div><div style="height:270px;"><canvas id="histChart"></canvas></div></div>
+  <div class="g2">
+    <div class="card"><div class="ct">Snapshots</div><div class="sy" id="perfSnaps"></div></div>
+    <div class="card"><div class="ct">Αξία ανά Πλατφόρμα</div><div style="height:235px;"><canvas id="platChart"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ========== PLAN ========== -->
+<div class="section" id="s-plan">
+  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);">
+    <div class="kpi" style="--kl:var(--accent)"><div class="kpi-lbl">Μηνιαίο Budget</div><div class="kpi-val">~€700</div><div class="kpi-sub">2026 κανονική ροή</div></div>
+    <div class="kpi" style="--kl:var(--accent2)"><div class="kpi-lbl">Injection #1 Αυγ</div><div class="kpi-val">€4.770</div><div class="kpi-sub">TR + Piraeus</div></div>
+    <div class="kpi" style="--kl:var(--accent3)"><div class="kpi-lbl">Injection #2 Νοε</div><div class="kpi-val">€4.390</div><div class="kpi-sub">TR + Piraeus</div></div>
+    <div class="kpi" style="--kl:var(--warn)"><div class="kpi-lbl">Injection #3 Ιαν'27</div><div class="kpi-val">€2.715</div><div class="kpi-sub">TR + Piraeus</div></div>
+  </div>
+  <div class="card" style="margin-bottom:1.2rem;"><div class="ct">Monthly Plan Progress 2026–2027</div>
+    <div id="planProg" style="margin-bottom:0.85rem;"></div>
+    <div id="planContent"></div>
+  </div>
+  <div class="card"><div class="ct">💉 Injections</div>
+    <table><thead><tr><th>Injection</th><th>Ημ.</th><th>Platform</th><th>Asset</th><th>Τεμ.</th><th>Est. €</th><th>Θέμα</th></tr></thead>
+    <tbody>
+      <tr><td>#1</td><td>Αυγ 2026</td><td>Trade Republic</td><td>VUAA</td><td>20</td><td class="pos">€2.320</td><td><span class="bk bk-etf">Core ETF</span></td></tr>
+      <tr><td>#1</td><td>Αυγ 2026</td><td>Trade Republic</td><td>VWCE</td><td>10</td><td class="pos">€1.050</td><td><span class="bk bk-etf">Global ETF</span></td></tr>
+      <tr><td>#1</td><td>Αυγ 2026</td><td>Trade Republic</td><td>Realty Income</td><td>10</td><td class="pos">€500</td><td><span class="bk bk-stock">Dividend</span></td></tr>
+      <tr><td>#1</td><td>Αυγ 2026</td><td>Piraeus</td><td>ΔΕΗ</td><td>50</td><td class="pos">€900</td><td><span class="bk bk-greek">Energy</span></td></tr>
+      <tr><td>#2</td><td>Νοε 2026</td><td>Trade Republic</td><td>VUAA</td><td>15</td><td class="pos">€1.740</td><td><span class="bk bk-etf">Core ETF</span></td></tr>
+      <tr><td>#2</td><td>Νοε 2026</td><td>Piraeus</td><td>METLEN</td><td>30</td><td class="pos">€990</td><td><span class="bk bk-greek">Infra</span></td></tr>
+      <tr><td>#2</td><td>Νοε 2026</td><td>Piraeus</td><td>ΠΕΙΡΑΙΩΣ</td><td>200</td><td class="pos">€1.660</td><td><span class="bk bk-greek">Banking</span></td></tr>
+      <tr><td>#3</td><td>Ιαν 2027</td><td>Trade Republic</td><td>VWCE</td><td>15</td><td class="pos">€1.575</td><td><span class="bk bk-etf">Diversif.</span></td></tr>
+      <tr><td>#3</td><td>Ιαν 2027</td><td>Piraeus</td><td>ΟΠΑΠ</td><td>40</td><td class="pos">€640</td><td><span class="bk bk-greek">Dividend GR</span></td></tr>
+    </tbody></table>
+  </div>
+</div>
+
+<!-- ========== LOG ========== -->
+<div class="section" id="s-log">
+  <div class="card" style="margin-bottom:1.2rem;">
+    <div class="ct"><span class="live"></span>Unified Log — Αγορές · Πωλήσεις · Dividends · Corporate Actions</div>
+    <p style="font-size:0.67rem;color:var(--muted);margin-bottom:1rem;line-height:1.7;">
+      <b style="color:var(--accent)">Αγορά/Πώληση</b> → ενημερώνει αυτόματα Holdings (μέσος κόστος, τεμάχια), KPIs, γραφήματα.<br>
+      <b style="color:var(--accent3)">Dividend</b> → εμφανίζεται στο Dividends tab και αθροίζεται στο σύνολο. Βάλε τεμάχια=0 και τιμή=ποσό dividend.<br>
+      <b style="color:var(--muted)">Corporate Action</b> → split, AMK, bonus shares κλπ — καταγράφεται μόνο για ιστορικό.
+    </p>
+    <div class="fr" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;">
+      <div class="fg"><label>Asset (όνομα ή symbol)</label><input type="text" id="lAsset" placeholder="π.χ. NVDA, ΔΕΗ, VUAA..."></div>
+      <div class="fg"><label>Τύπος</label>
+        <select id="lType" onchange="typeChanged()">
+          <option value="Buy">📈 Αγορά</option>
+          <option value="Sell">📉 Πώληση</option>
+          <option value="Dividend">💰 Dividend</option>
+          <option value="Corporate">🏦 Corporate Action</option>
+        </select></div>
+      <div class="fg"><label id="lSharesLbl">Τεμάχια</label><input type="number" id="lShares" placeholder="0" step="any" min="0"></div>
+      <div class="fg"><label id="lPriceLbl">Τιμή ανά τεμ. (€)</label><input type="number" id="lPrice" placeholder="0.00" step="any" min="0"></div>
+      <div class="fg"><label>Ημερομηνία</label><input type="date" id="lDate"></div>
+      <div class="fg"><label>&nbsp;</label><button class="btn" onclick="addEntry()" style="height:100%;min-height:32px;">+ Καταχώρηση</button></div>
+    </div>
+    <div class="fr" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+      <div class="fg"><label>Platform</label>
+        <select id="lPlatform"><option>Piraeus Securities</option><option>Trade Republic</option><option>Freedom24</option><option>Binance</option><option>Bitpanda</option><option>Crypto App</option><option>Άλλο</option></select></div>
+      <div class="fg"><label>Asset Class</label>
+        <select id="lCls"><option>Stock</option><option>ETF</option><option>Crypto</option><option>Bond</option></select></div>
+      <div class="fg"><label>Market</label>
+        <select id="lMkt"><option>Greek</option><option>USA</option><option>Global</option></select></div>
+      <div class="fg"><label>Σχόλιο</label><input type="text" id="lNote" placeholder="προαιρετικό..."></div>
+    </div>
+    <!-- Total preview -->
+    <div id="entryPreview" style="font-size:0.7rem;color:var(--muted);padding:0.5rem 0;display:none;">
+      Σύνολο: <span id="previewTotal" style="color:var(--accent);font-family:'Syne',sans-serif;font-weight:700;"></span>
+      &nbsp;|&nbsp; <span id="previewNote" style="color:var(--accent3);"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.9rem;flex-wrap:wrap;gap:0.5rem;">
+      <div class="ct" style="margin:0;">📋 Ιστορικό Εγγραφών</div>
+      <div class="itabs" style="margin:0;" id="logTabs">
+        <button class="itab active" onclick="filterLog('all',this)">ΟΛΑ</button>
+        <button class="itab" onclick="filterLog('Buy',this)">Αγορές</button>
+        <button class="itab" onclick="filterLog('Sell',this)">Πωλήσεις</button>
+        <button class="itab" onclick="filterLog('Dividend',this)">Dividends</button>
+        <button class="itab" onclick="filterLog('Corporate',this)">Corporate</button>
+      </div>
+    </div>
+    <div class="sy"><table>
+      <thead><tr><th>Ημερομηνία</th><th>Asset</th><th>Τύπος</th><th>Class</th><th>Platform</th><th>Τεμάχια</th><th>Τιμή</th><th>Σύνολο</th><th>Σχόλιο</th><th></th></tr></thead>
+      <tbody id="logBody"></tbody>
+    </table></div>
+    <div style="margin-top:0.65rem;font-size:0.67rem;color:var(--muted);" id="logSumm"></div>
+  </div>
+</div>
+
+<!-- ========== BACKUP ========== -->
+<div class="section" id="s-backup">
+  <div class="g2">
+    <div class="card">
+      <div class="ct">📤 Export & Backup</div>
+      <p style="font-size:0.67rem;color:var(--muted);margin-bottom:1.1rem;line-height:1.7;">
+        <b style="color:var(--text)">JSON</b> = πλήρες backup, χρησιμοποίησε για restore.<br>
+        <b style="color:var(--text)">CSV</b> = ανοίγει σε Excel/Sheets απευθείας.<br>
+        <b style="color:var(--text)">Excel</b> = report με 7 sheets, γραφήματα-ready.
+      </p>
+      <div class="br" style="flex-direction:column;align-items:stretch;gap:0.6rem;">
+        <button class="btn" onclick="exportJSON()" style="text-align:left;">⬇ Export Full Backup (.json)</button>
+        <button class="btn btn-blue" onclick="exportCSV('holdings')" style="text-align:left;">⬇ Export Holdings (.csv)</button>
+        <button class="btn btn-blue" onclick="exportCSV('log')" style="text-align:left;">⬇ Export Transaction Log (.csv)</button>
+        <button class="btn btn-warn" onclick="exportExcel()" style="text-align:left;">⬇ Export Full Report (.xlsx — 7 sheets)</button>
+      </div>
+      <div class="sep"></div>
+      <div style="font-size:0.67rem;color:var(--muted);line-height:1.9;">
+        <b style="color:var(--text);">📁 Google Drive — Βήμα βήμα:</b><br>
+        1. Πάτα <b style="color:var(--accent)">Export Full Backup (JSON)</b><br>
+        2. Ανέβασε το .json στον φάκελο <i>Portfolio_Backup</i> στο Drive<br>
+        3. Ανέβασε και το .html αρχείο εκεί<br>
+        4. Σε νέα συσκευή: κατέβασε και τα 2, άνοιξε το .html<br>
+        5. Πάτα Import → διάλεξε το .json → έτοιμο!<br>
+        <span style="color:var(--accent);">→ Repeat: κάνε export μετά από κάθε ενημέρωση τιμών ή νέα αγορά</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">📥 Import & Restore</div>
+      <p style="font-size:0.67rem;color:var(--muted);margin-bottom:1.1rem;line-height:1.7;">
+        <b style="color:var(--warn)">Import JSON</b> = αντικαθιστά ΟΛΑ τα δεδομένα.<br>
+        <b style="color:var(--accent2)">Import CSV Log</b> = προσθέτει εγγραφές χωρίς να σβήσει τίποτα.<br>
+        Κάνε πάντα export πριν το import!
+      </p>
+      <div class="br" style="flex-direction:column;align-items:stretch;gap:0.6rem;">
+        <label style="display:block;">
+          <div class="btn" style="text-align:left;display:block;cursor:pointer;">⬆ Import Backup (JSON) — Αντικαθιστά τα πάντα</div>
+          <input type="file" accept=".json" onchange="importJSON(this)" style="display:none;">
+        </label>
+        <label style="display:block;">
+          <div class="btn btn-blue" style="text-align:left;display:block;cursor:pointer;">⬆ Import Transaction Log (CSV) — Προσθήκη</div>
+          <input type="file" accept=".csv" onchange="importCSV(this)" style="display:none;">
+        </label>
+      </div>
+      <div class="sep"></div>
+      <div style="font-size:0.67rem;color:var(--muted);line-height:1.9;">
+        <b style="color:var(--text);">📋 Format CSV Log:</b><br>
+        <code style="color:var(--accent3);font-size:0.63rem;">date,asset,type,class,market,platform,shares,price,note</code><br>
+        Παράδειγμα αγοράς:<br>
+        <code style="color:var(--muted);font-size:0.62rem;">2026-05-26,NVDA,Buy,Stock,USA,Piraeus Securities,2,199.88,</code><br>
+        Παράδειγμα dividend:<br>
+        <code style="color:var(--muted);font-size:0.62rem;">2026-05-26,ΔΕΗ,Dividend,Stock,Greek,Piraeus Securities,0,25.50,Q1 2026</code>
+      </div>
+    </div>
+  </div>
+  <div class="card"><div class="ct">📜 Backup History</div>
+    <div class="sy"><table><thead><tr><th>Ημερομηνία</th><th>Τύπος</th><th>Log Entries</th><th>Holdings</th><th>Prices</th></tr></thead>
+    <tbody id="bkHistBody"></tbody></table></div>
+    <div style="margin-top:0.9rem;"><button class="btn btn-red btn-sm" onclick="clearAll()">🗑 Clear All Data — Διαγραφή Παντός</button></div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// =====================================================
+//  STORAGE HELPERS
+// =====================================================
+const LS_GET = k => { try { return JSON.parse(localStorage.getItem('pt_'+k)); } catch(e) { return null; } };
+const LS_SET = (k,v) => localStorage.setItem('pt_'+k, JSON.stringify(v));
+
+// =====================================================
+//  MASTER DATA — all holdings with base prices
+// =====================================================
+const BASE_HOLDINGS = [
+  {name:'CARDANO',sym:'ADA',cls:'Crypto',mkt:'Global',shares:15072,avg:0.399,cur:0.217,baseCur:0.217},
+  {name:'AKTOR (Bond)',sym:'AKTORB',cls:'Bond',mkt:'Greek',shares:4,avg:1000,cur:1000,baseCur:1000},
+  {name:'AKTOR',sym:'AKTR',cls:'Stock',mkt:'Greek',shares:450,avg:9.03,cur:11.16,baseCur:11.16},
+  {name:'ALWYN',sym:'ALWN',cls:'Stock',mkt:'Greek',shares:282,avg:16.05,cur:12.13,baseCur:12.13},
+  {name:'AMAZON',sym:'AMZN',cls:'Stock',mkt:'USA',shares:3,avg:97.49,cur:252.17,baseCur:252.17},
+  {name:'ALIBABA',sym:'BABA',cls:'Stock',mkt:'USA',shares:20,avg:67.53,cur:135.38,baseCur:135.38},
+  {name:'BEAM',sym:'BEAM',cls:'Crypto',mkt:'Global',shares:11493,avg:0.037,cur:0.002,baseCur:0.002},
+  {name:'CITIGROUP',sym:'C',cls:'Stock',mkt:'USA',shares:2,avg:51.81,cur:132.79,baseCur:132.79},
+  {name:'COTI',sym:'COTI',cls:'Crypto',mkt:'Global',shares:2949,avg:0.07,cur:0.015,baseCur:0.015},
+  {name:'ETHEREUM',sym:'ETH',cls:'Crypto',mkt:'Global',shares:8.5,avg:1587.51,cur:2046.39,baseCur:2046.39},
+  {name:'FREEPORT-MCM',sym:'FCX',cls:'Stock',mkt:'USA',shares:2,avg:44.41,cur:69.01,baseCur:69.01},
+  {name:'FLOKI',sym:'FLOKI',cls:'Crypto',mkt:'Global',shares:1010300,avg:0.000145,cur:0.000034,baseCur:0.000034},
+  {name:'iSh Agg Bond',sym:'GLOB.BOND',cls:'ETF',mkt:'Global',shares:42,avg:4.59,cur:4.55,baseCur:4.55},
+  {name:'INTEL',sym:'INTC',cls:'Stock',mkt:'USA',shares:6,avg:25.47,cur:66.26,baseCur:66.26},
+  {name:'MANA',sym:'MANA',cls:'Crypto',mkt:'Global',shares:453,avg:2.42,cur:0.0925,baseCur:0.0925},
+  {name:'MATIC',sym:'MATIC',cls:'Crypto',mkt:'Global',shares:500,avg:1.01,cur:0.0000336,baseCur:0.0000336},
+  {name:'META',sym:'META',cls:'Stock',mkt:'USA',shares:2,avg:143.01,cur:674.63,baseCur:674.63},
+  {name:'MICROSOFT',sym:'MSFT',cls:'Stock',mkt:'USA',shares:12,avg:392.95,cur:424.16,baseCur:424.16},
+  {name:'METLEN',sym:'MTLN',cls:'Stock',mkt:'Greek',shares:143,avg:37.66,cur:33.56,baseCur:33.56},
+  {name:'NEO',sym:'NEO',cls:'Crypto',mkt:'Global',shares:49,avg:7.55,cur:2.45,baseCur:2.45},
+  {name:'NVIDIA',sym:'NVDA',cls:'Stock',mkt:'USA',shares:131,avg:76.65,cur:199.88,baseCur:199.88},
+  {name:'REALTY INCOME',sym:'O',cls:'Stock',mkt:'USA',shares:2,avg:53.1,cur:53.15,baseCur:53.15},
+  {name:'SCHD ETF',sym:'SCHD',cls:'ETF',mkt:'USA',shares:6,avg:25.56,cur:31.05,baseCur:31.05},
+  {name:'SOFI',sym:'SOFI',cls:'Stock',mkt:'USA',shares:25,avg:5.8,cur:19.28,baseCur:19.28},
+  {name:'SOLANA',sym:'SOL',cls:'Crypto',mkt:'Global',shares:30,avg:83.72,cur:75.32,baseCur:75.32},
+  {name:'SYNAPSE',sym:'SYN',cls:'Crypto',mkt:'Global',shares:450.15,avg:1.08,cur:0.0000336,baseCur:0.0000336},
+  {name:'TELADOC',sym:'TDOC',cls:'Stock',mkt:'USA',shares:10,avg:27.27,cur:6.05,baseCur:6.05},
+  {name:'S&P 500 VUAA',sym:'VUAA',cls:'ETF',mkt:'USA',shares:81,avg:100.21,cur:116.26,baseCur:116.26},
+  {name:'VWCE All-World',sym:'VWCE',cls:'ETF',mkt:'Global',shares:1,avg:157.74,cur:157,baseCur:157},
+  {name:'ΑΒΑΞ',sym:'ΑΒΑΞ',cls:'Stock',mkt:'Greek',shares:500,avg:3.285,cur:3.15,baseCur:3.15},
+  {name:'ΑΛΦΑ ΤΡΑΠΕΖΑ',sym:'ΑΛΦΑ',cls:'Stock',mkt:'Greek',shares:260,avg:3.565,cur:3.71,baseCur:3.71},
+  {name:'ΓΕΚ ΤΕΡΝΑ Bond',sym:'ΓΕΚ',cls:'Bond',mkt:'Greek',shares:7,avg:1000,cur:1000,baseCur:1000},
+  {name:'ΓΕΚ ΤΕΡΝΑ',sym:'ΓΕΚΤΕΡΝΑ',cls:'Stock',mkt:'Greek',shares:108,avg:15.5,cur:41.26,baseCur:41.26},
+  {name:'ΔΕΗ',sym:'ΔΕΗ',cls:'Stock',mkt:'Greek',shares:220,avg:13.48,cur:18.43,baseCur:18.43},
+  {name:'ΔΕΗΕ',sym:'ΔΕΗΕ',cls:'Stock',mkt:'Greek',shares:139,avg:18.64,cur:20.15,baseCur:20.15},
+  {name:'ΕΛΠΕ',sym:'ΕΛΠΕ',cls:'Stock',mkt:'Greek',shares:5,avg:7.32,cur:9.49,baseCur:9.49},
+  {name:'ΕΤΕ',sym:'ΕΤΕ',cls:'Stock',mkt:'Greek',shares:155,avg:6.89,cur:14.37,baseCur:14.37},
+  {name:'MOTOR OIL',sym:'ΜΟΗ',cls:'Stock',mkt:'Greek',shares:12,avg:30.5,cur:35.44,baseCur:35.44},
+  {name:'ΠΕΙΡΑΙΩΣ',sym:'ΠΕΙΡ',cls:'Stock',mkt:'Greek',shares:335,avg:3.82,cur:8.3,baseCur:8.3},
+];
+
+// Base dividends per asset (historical, from the xlsx)
+const BASE_DIVS = {
+  'ADA':83.64,'ALWN':653.81,'AMZN':0,'BABA':73.2,'C':10.02,'ETH':0,
+  'FCX':2.51,'INTC':0.75,'META':6.45,'MSFT':76.68,'MTLN':327.76,
+  'NVDA':9.87,'SCHD':13.36,'ΓΕΚ':107.58,'ΓΕΚΤΕΡΝΑ':64.2,'ΔΕΗ':53.87,
+  'ΕΛΠΕ':5.64,'ΕΤΕ':141.56,'ΜΟΗ':3.4,'ΠΕΙΡ':107.38,'ΑΛΦΑ':5.98,
+};
+
+const DEFAULT_TARGETS = {Stock:55,ETF:25,Bond:10,Crypto:10};
+
+const PLAN_DATA = [
+  {month:'Απρ 2026',done:true,items:[
+    {broker:'Trade Republic',asset:'VUAA',qty:3,price:121.2,total:363.6,done:true},
+    {broker:'Trade Republic',asset:'VWCE',qty:1,price:157.74,total:157.74,done:true},
+    {broker:'Trade Republic',asset:'Realty Income',qty:2,price:53.1,total:106.2,done:true},
+    {broker:'Piraeus',asset:'ΔΕΗ',qty:10,price:19.78,total:197.8,done:true},
+    {broker:'Piraeus',asset:'ALWYN',qty:10,price:12.13,total:121.3,done:true},
+    {broker:'Trade Republic',asset:'Global Bond ETF',qty:42,price:4.59,total:192.78,done:true},
+  ]},
+  {month:'Μαι 2026',done:false,items:[{broker:'Trade Republic',asset:'VUAA',qty:3,price:116,total:348},{broker:'Trade Republic',asset:'VWCE',qty:1,price:105,total:105},{broker:'Trade Republic',asset:'Realty Income',qty:1,price:50,total:50},{broker:'Piraeus',asset:'METLEN',qty:3,price:33,total:99},{broker:'Piraeus',asset:'ΓΕΚ ΤΕΡΝΑ',qty:2,price:41,total:82}]},
+  {month:'Ιουν 2026',done:false,items:[{broker:'Trade Republic',asset:'VUAA',qty:3,price:116,total:348},{broker:'Trade Republic',asset:'VWCE',qty:1,price:105,total:105},{broker:'Trade Republic',asset:'Realty Income',qty:1,price:50,total:50},{broker:'Piraeus',asset:'ΠΕΙΡΑΙΩΣ',qty:18,price:8.3,total:149.4},{broker:'Piraeus',asset:'ΔΕΗ',qty:3,price:18,total:54}]},
+  {month:'Ιουλ 2026',done:false,items:[{broker:'Trade Republic',asset:'VUAA',qty:3,price:116,total:348},{broker:'Trade Republic',asset:'VWCE',qty:1,price:105,total:105},{broker:'Trade Republic',asset:'Realty Income',qty:1,price:50,total:50},{broker:'Piraeus',asset:'ΟΠΑΠ',qty:6,price:16,total:96},{broker:'Piraeus',asset:'METLEN',qty:2,price:33,total:66}]},
+  {month:'Αυγ 2026',done:false,items:[{broker:'Trade Republic',asset:'VUAA',qty:3,price:116,total:348},{broker:'Trade Republic',asset:'VWCE',qty:1,price:105,total:105},{broker:'Trade Republic',asset:'Realty Income',qty:1,price:50,total:50},{broker:'Piraeus',asset:'ΔΕΗ',qty:8,price:18,total:144},{broker:'Piraeus',asset:'ΠΕΙΡΑΙΩΣ',qty:10,price:8.3,total:83}]},
+  {month:'Σεπ 2026',done:false,items:[{broker:'Trade Republic',asset:'VUAA',qty:3,price:116,total:348},{broker:'Trade Republic',asset:'VWCE',qty:1,price:105,total:105},{broker:'Trade Republic',asset:'Realty Income',qty:1,price:50,total:50},{broker:'Piraeus',asset:'METLEN',qty:3,price:33,total:99},{broker:'Piraeus',asset:'ΓΕΚ ΤΕΡΝΑ',qty:2,price:41,total:82}]},
+  {month:'Οκτ 2026',done:false,items:[{broker:'Trade Republic',asset:'VUAA',qty:3,price:116,total:348},{broker:'Trade Republic',asset:'VWCE',qty:1,price:105,total:105},{broker:'Trade Republic',asset:'Realty Income',qty:1,price:50,total:50},{broker:'Piraeus',asset:'ΔΕΗ',qty:6,price:18,total:108},{broker:'Piraeus',asset:'ΟΠΑΠ',qty:4,price:16,total:64}]},
+  {month:'Νοε 2026',done:false,items:[{broker:'Trade Republic',asset:'VUAA',qty:3,price:116,total:348},{broker:'Trade Republic',asset:'VWCE',qty:1,price:105,total:105},{broker:'Trade Republic',asset:'Realty Income',qty:1,price:50,total:50},{broker:'Piraeus',asset:'ΠΕΙΡΑΙΩΣ',qty:15,price:8.3,total:124.5},{broker:'Piraeus',asset:'METLEN',qty:2,price:33,total:66}]},
+  {month:'Δεκ 2026',done:false,items:[{broker:'Trade Republic',asset:'VUAA',qty:3,price:116,total:348},{broker:'Trade Republic',asset:'VWCE',qty:1,price:105,total:105},{broker:'Trade Republic',asset:'Realty Income',qty:1,price:50,total:50},{broker:'Piraeus',asset:'ΔΕΗ',qty:5,price:18,total:90},{broker:'Piraeus',asset:'ΟΠΑΠ',qty:4,price:16,total:64}]},
+];
+
+const PERF_SNAPS = [
+  {label:"Ιαν '23",val:49993},{label:"Φεβ '23",val:51786},{label:"Μαρ '23",val:57313},
+  {label:"Απρ '23",val:62389},{label:"Μαι '23",val:63356},{label:"Ιουν '23",val:62596},
+  {label:"Αυγ '23",val:65006},{label:"Οκτ '23",val:58939},{label:"Δεκ '23",val:68115},
+  {label:"Ιαν '24",val:80703},{label:"Φεβ '24",val:71059},{label:"Ιουλ '24",val:92542},
+  {label:"Σεπ '24",val:104655},{label:"Μαι '26",val:110367},
+];
+
+// =====================================================
+//  LIVE STATE — rebuilt from BASE + log entries
+// =====================================================
+let holdings, logEntries, priceLog, targets, backupHistory;
+let lastBackup, lastPriceUpdate;
+let logFilter = 'all';
+let hFilter = 'all', hSearch = '';
+
+function initState() {
+  holdings = LS_GET('holdings') || JSON.parse(JSON.stringify(BASE_HOLDINGS));
+  logEntries = LS_GET('log') || [];
+  priceLog = LS_GET('pricelog') || [];
+  targets = LS_GET('targets') || {...DEFAULT_TARGETS};
+  backupHistory = LS_GET('bkHistory') || [];
+  lastBackup = localStorage.getItem('pt_lastBackup') || null;
+  lastPriceUpdate = localStorage.getItem('pt_lastPriceUpdate') || null;
+}
+
+function save() {
+  LS_SET('holdings', holdings);
+  LS_SET('log', logEntries);
+  LS_SET('pricelog', priceLog);
+  LS_SET('targets', targets);
+  LS_SET('bkHistory', backupHistory);
+}
+
+// =====================================================
+//  COMPUTED — merges holdings + log entries live
+// =====================================================
+function getComputedHoldings() {
+  // Deep copy base holdings
+  const map = {};
+  holdings.forEach(h => {
+    map[h.sym] = {...h, logDiv: 0};
+  });
+
+  // Apply Buy/Sell from log → update shares + avg (weighted)
+  logEntries.filter(e => e.type === 'Buy' || e.type === 'Sell').forEach(e => {
+    const sym = e.sym || e.asset.toUpperCase();
+    // Try to find matching holding
+    let h = map[sym] || Object.values(map).find(h2 =>
+      h2.sym.toUpperCase() === sym ||
+      h2.name.toUpperCase() === sym ||
+      h2.name.toUpperCase().includes(sym) ||
+      sym.includes(h2.sym.toUpperCase())
+    );
+    if (!h) return; // New asset — skip for now (complex)
+    const shares = parseFloat(e.shares) || 0;
+    const price = parseFloat(e.price) || 0;
+    if (e.type === 'Buy') {
+      const newTotal = h.shares * h.avg + shares * price;
+      h.shares = Math.max(0, h.shares + shares);
+      h.avg = h.shares > 0 ? newTotal / h.shares : h.avg;
+    } else {
+      h.shares = Math.max(0, h.shares - shares);
+    }
+  });
+
+  // Sum dividends from log
+  logEntries.filter(e => e.type === 'Dividend').forEach(e => {
+    const sym = e.sym || e.asset.toUpperCase();
+    let h = map[sym] || Object.values(map).find(h2 =>
+      h2.sym.toUpperCase() === sym ||
+      h2.name.toUpperCase() === sym ||
+      h2.name.toUpperCase().includes(sym) ||
+      sym.includes(h2.sym.toUpperCase())
+    );
+    if (h) {
+      const amount = parseFloat(e.price) || 0; // dividend amount stored in price field
+      h.logDiv = (h.logDiv || 0) + amount;
+    }
+  });
+
+  return Object.values(map).map(h => {
+    const inv = h.shares * h.avg;
+    const val = h.shares * h.cur;
+    const pl = val - inv;
+    const roi = inv > 0 ? (pl / inv) * 100 : 0;
+    const baseDiv = BASE_DIVS[h.sym] || 0;
+    const div = baseDiv + (h.logDiv || 0);
+    return {...h, inv, val, pl, roi, div};
+  });
+}
+
+function totalVal() { return getComputedHoldings().reduce((s,h)=>s+h.val,0); }
+function totalInv() { return getComputedHoldings().reduce((s,h)=>s+h.inv,0); }
+function totalDiv() { return getComputedHoldings().reduce((s,h)=>s+(h.div||0),0); }
+function byClass() {
+  const m={};
+  getComputedHoldings().forEach(h=>{m[h.cls]=(m[h.cls]||0)+h.val;});
+  return m;
+}
+
+// =====================================================
+//  FORMAT
+// =====================================================
+const f0 = n => n === undefined ? '—' : (n<0?'-':'')+'€'+Math.abs(n).toLocaleString('el-GR',{minimumFractionDigits:0,maximumFractionDigits:0});
+const f2 = n => (n<0?'-':'')+'€'+Math.abs(n).toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fp = n => (n>=0?'+':'')+n.toFixed(2)+'%';
+const fd = d => d ? new Date(d).toLocaleDateString('el-GR') : '—';
+const pd = p => p===undefined||p===null?2 : p<0.00001?7 : p<0.001?5 : p<0.1?4 : p<1?3 : 2;
+
+// =====================================================
+//  TOAST
+// =====================================================
+function toast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError?' error':'');
+  setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+// =====================================================
+//  CHARTS — destroy before recreate
+// =====================================================
+const charts = {};
+function mkChart(id, config) {
+  if (charts[id]) { charts[id].destroy(); }
+  charts[id] = new Chart(document.getElementById(id), config);
+}
+
+// =====================================================
+//  NAV
+// =====================================================
+function go(id, btn) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('s-'+id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  ({
+    overview: renderOverview,
+    prices: renderPrices,
+    holdings: renderHoldings,
+    rebalance: renderRebalance,
+    dividends: renderDividends,
+    performance: renderPerformance,
+    plan: renderPlan,
+    log: renderLog,
+    backup: renderBackup,
+  }[id] || (()=>{}))();
+}
+
+// =====================================================
+//  OVERVIEW
+// =====================================================
+function renderOverview() {
+  const data = getComputedHoldings();
+  const tv = data.reduce((s,h)=>s+h.val,0);
+  const ti = data.reduce((s,h)=>s+h.inv,0);
+  const tp = tv - ti;
+  const tr = ti > 0 ? tp/ti*100 : 0;
+  const td = data.reduce((s,h)=>s+(h.div||0),0);
+  const logDivTotal = logEntries.filter(e=>e.type==='Dividend').reduce((s,e)=>s+(parseFloat(e.price)||0),0);
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi" style="--kl:var(--accent)"><div class="kpi-lbl">Τρέχουσα Αξία</div><div class="kpi-val">${f0(tv)}</div><div class="kpi-sub pos">↑ ${f0(tp)} κέρδος</div></div>
+    <div class="kpi" style="--kl:var(--green)"><div class="kpi-lbl">Επενδυμένο</div><div class="kpi-val">${f0(ti)}</div><div class="kpi-sub">3 platforms</div></div>
+    <div class="kpi" style="--kl:var(--accent2)"><div class="kpi-lbl">Συνολικό ROI</div><div class="kpi-val ${tr>=0?'pos':'neg'}">${fp(tr)}</div><div class="kpi-sub">Από αρχή</div></div>
+    <div class="kpi" style="--kl:var(--accent3)"><div class="kpi-lbl">Dividends (Σύνολο)</div><div class="kpi-val" style="color:var(--accent3)">${f2(td+logDivTotal)}</div><div class="kpi-sub">${logEntries.filter(e=>e.type==='Dividend').length} νέες καταχωρήσεις</div></div>
+    <div class="kpi" style="--kl:var(--accent)"><div class="kpi-lbl">Θέσεις</div><div class="kpi-val">${data.length}</div><div class="kpi-sub">Ενεργές</div></div>
+    <div class="kpi" style="--kl:var(--accent2)"><div class="kpi-lbl">Νέες Αγορές (Log)</div><div class="kpi-val">${logEntries.filter(e=>e.type==='Buy').length}</div><div class="kpi-sub">${f0(logEntries.filter(e=>e.type==='Buy').reduce((s,e)=>s+(parseFloat(e.shares)||0)*(parseFloat(e.price)||0),0))}</div></div>
+    <div class="kpi" style="--kl:var(--green)"><div class="kpi-lbl">Piraeus Sec</div><div class="kpi-val">€72.894</div><div class="kpi-sub">Snapshot Μαι'26</div></div>
+    <div class="kpi" style="--kl:var(--accent3)"><div class="kpi-lbl">Trade Republic</div><div class="kpi-val">€9.951</div><div class="kpi-sub">Snapshot Μαι'26</div></div>
+  `;
+
+  const bc = byClass();
+  const cls4 = [{c:'Stock',col:'var(--accent2)'},{c:'Crypto',col:'var(--accent3)'},{c:'Bond',col:'var(--warn)'},{c:'ETF',col:'var(--accent)'}];
+  document.getElementById('allocBars').innerHTML = cls4.map(({c,col})=>{
+    const v=bc[c]||0, pct=tv>0?v/tv*100:0, tgt=targets[c]||0;
+    const diff=pct-tgt;
+    return `<div class="al-item"><div class="al-hdr"><span><span class="bk bk-${c.toLowerCase()}">${c}</span> <span style="color:var(--muted);font-size:0.63rem;margin-left:0.3rem;">${f0(v)}</span></span><span style="font-family:'Syne',sans-serif;font-weight:700;">${pct.toFixed(1)}% <span style="font-size:0.58rem;color:${Math.abs(diff)>5?'var(--warn)':'var(--muted)'};">(στόχος ${tgt}%)</span></span></div><div class="ab"><div class="af" style="width:${Math.min(pct,100).toFixed(1)}%;background:${col};"></div></div></div>`;
+  }).join('');
+
+  mkChart('donutChart',{type:'doughnut',data:{labels:['Stocks','Crypto','Bonds','ETFs'],datasets:[{data:[bc.Stock||0,bc.Crypto||0,bc.Bond||0,bc.ETF||0],backgroundColor:['rgba(79,142,247,.85)','rgba(247,201,79,.85)','rgba(247,95,79,.85)','rgba(0,229,160,.85)'],borderColor:'#0a0c10',borderWidth:3,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'66%',plugins:{legend:{position:'bottom',labels:{padding:11,usePointStyle:true,font:{size:10}}},tooltip:{callbacks:{label:ctx=>`  ${ctx.label}: ${f0(ctx.parsed)} (${(ctx.parsed/tv*100).toFixed(1)}%)`}}}}});
+  mkChart('perfChart',{type:'line',data:{labels:PERF_SNAPS.map(s=>s.label),datasets:[{data:PERF_SNAPS.map(s=>s.val),borderColor:'rgba(0,229,160,1)',backgroundColor:'rgba(0,229,160,.06)',fill:true,tension:0.4,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'€'+ctx.parsed.y.toLocaleString('el-GR')}}},scales:{x:{grid:{display:false},ticks:{font:{size:8},maxRotation:45}},y:{grid:{color:'rgba(30,36,48,.6)'},ticks:{callback:v=>'€'+(v/1000).toFixed(0)+'k',font:{size:9}}}}}});
+
+  const sorted = data.filter(h=>h.inv>50).sort((a,b)=>b.roi-a.roi);
+  document.getElementById('topPerf').innerHTML = '<table><thead><tr><th>Asset</th><th>ROI</th><th>P/L</th></tr></thead><tbody>'+sorted.slice(0,8).map(h=>`<tr><td style="font-weight:500">${h.name}</td><td class="pos">${fp(h.roi)}</td><td class="pos">${f0(h.pl)}</td></tr>`).join('')+'</tbody></table>';
+  const worst=[...sorted].reverse().slice(0,5);
+  document.getElementById('worstBody').innerHTML = worst.map(h=>`<tr><td style="font-weight:500">${h.name}</td><td><span class="bk bk-${h.cls.toLowerCase()}">${h.cls}</span></td><td class="neg">${fp(h.roi)}</td><td class="neg">${f0(h.pl)}</td><td style="color:var(--muted);font-size:0.65rem;">${h.roi<-50?'Υψηλός κίνδυνος':h.roi<-15?'Αναθεώρηση θέσης':'Παρακολούθηση'}</td></tr>`).join('');
+}
+
+// =====================================================
+//  PRICES
+// =====================================================
+function renderPrices() {
+  document.getElementById('prUpdateTime').textContent = lastPriceUpdate ? fd(lastPriceUpdate) : '—';
+  document.getElementById('priceTableBody').innerHTML = holdings.map((h,i)=>{
+    const d = pd(h.cur);
+    return `<tr>
+      <td style="font-weight:500">${h.name}</td>
+      <td style="color:var(--muted)">${h.sym}</td>
+      <td><span class="bk bk-${h.cls.toLowerCase()}">${h.cls}</span></td>
+      <td>${h.avg.toFixed(d)}</td>
+      <td id="cp_${i}">${h.cur.toFixed(d)}</td>
+      <td><input class="pi" id="np_${i}" type="number" value="${h.cur.toFixed(d)}" step="any" min="0" oninput="markPriceChg(${i})"></td>
+      <td id="pd_${i}" style="color:var(--muted);">—</td>
+    </tr>`;
+  }).join('');
+  renderPriceLog();
+}
+function markPriceChg(i) {
+  const inp = document.getElementById('np_'+i);
+  const nv = parseFloat(inp.value);
+  if (isNaN(nv)||nv<=0) return;
+  const diff = nv - holdings[i].cur;
+  const pct = holdings[i].cur > 0 ? diff/holdings[i].cur*100 : 0;
+  inp.classList.add('pi-chg');
+  document.getElementById('pd_'+i).innerHTML = `<span class="${diff>=0?'pos':'neg'}">${diff>=0?'+':''}${pct.toFixed(2)}%</span>`;
+}
+function applyPrices() {
+  const now = new Date().toISOString();
+  let changes = 0;
+  holdings.forEach((h,i) => {
+    const inp = document.getElementById('np_'+i);
+    if (!inp) return;
+    const nv = parseFloat(inp.value);
+    if (!isNaN(nv) && nv > 0 && nv !== h.cur) {
+      priceLog.unshift({date:now, asset:h.name, sym:h.sym, oldPrice:h.cur, newPrice:nv});
+      h.cur = nv;
+      changes++;
+    }
+  });
+  if (!changes) { toast('Δεν υπάρχουν αλλαγές!', true); return; }
+  lastPriceUpdate = now;
+  localStorage.setItem('pt_lastPriceUpdate', now);
+  save();
+  updateHdrInfo();
+  renderPrices();
+  toast(`✓ Ενημερώθηκαν ${changes} τιμές! Όλα τα tabs έχουν ανανεωθεί.`);
+}
+function resetPrices() {
+  if (!confirm('Reset όλων των τιμών στα αρχικά;')) return;
+  BASE_HOLDINGS.forEach((b,i) => { holdings[i].cur = b.baseCur; });
+  save(); renderPrices(); toast('Τιμές επαναφέρθηκαν στις αρχικές.');
+}
+function renderPriceLog() {
+  document.getElementById('priceLogBody').innerHTML = priceLog.slice(0,60).map(e=>`<tr>
+    <td style="color:var(--muted)">${fd(e.date)}</td>
+    <td>${e.asset}</td>
+    <td>€${e.oldPrice}</td>
+    <td style="font-weight:600;font-family:'Syne',sans-serif;">€${e.newPrice}</td>
+    <td class="${e.newPrice>=e.oldPrice?'pos':'neg'}">${e.newPrice>=e.oldPrice?'+':''}${((e.newPrice-e.oldPrice)/e.oldPrice*100).toFixed(2)}%</td>
+  </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem;">Κανένα price update ακόμα</td></tr>';
+}
+
+// =====================================================
+//  HOLDINGS
+// =====================================================
+function renderHoldings() {
+  const data = getComputedHoldings().filter(h=>{
+    const mf = hFilter==='all'||h.cls===hFilter||(hFilter==='Greek'&&h.mkt==='Greek')||(hFilter==='USA'&&h.mkt==='USA');
+    const s = hSearch.toLowerCase();
+    return mf&&(!s||h.name.toLowerCase().includes(s)||h.sym.toLowerCase().includes(s));
+  }).sort((a,b)=>b.val-a.val);
+  document.getElementById('hBody').innerHTML = data.map(h=>`<tr>
+    <td style="font-weight:500">${h.name}</td>
+    <td style="color:var(--muted)">${h.sym}</td>
+    <td><span class="bk bk-${h.cls.toLowerCase()}">${h.cls}</span></td>
+    <td><span class="bk bk-${h.mkt.toLowerCase()}">${h.mkt}</span></td>
+    <td>${Number(h.shares).toLocaleString('el-GR')}</td>
+    <td>${h.avg.toFixed(pd(h.avg))}</td>
+    <td style="font-weight:500;">${h.cur.toFixed(pd(h.cur))}</td>
+    <td>${f0(h.inv)}</td>
+    <td style="font-family:'Syne',sans-serif;font-weight:600;">${f0(h.val)}</td>
+    <td class="${h.pl>=0?'pos':'neg'}">${h.pl>=0?'+':''}${f0(h.pl)}</td>
+    <td class="${h.roi>=0?'pos':'neg'}">${fp(h.roi)}</td>
+    <td style="color:var(--accent3);">${f2(h.div||0)}</td>
+  </tr>`).join('');
+  const tv=data.reduce((s,h)=>s+h.val,0), ti=data.reduce((s,h)=>s+h.inv,0);
+  document.getElementById('hSumm').innerHTML=`${data.length} θέσεις | Σύνολο: <span style="color:var(--accent)">${f0(tv)}</span> | Επενδύθηκε: <span style="color:var(--muted)">${f0(ti)}</span>`;
+}
+function fh(f, btn) {
+  if(f==='srch') hSearch=document.getElementById('hSearch').value;
+  else { hFilter=f; document.querySelectorAll('#hTabs .itab').forEach(b=>b.classList.remove('active')); if(btn)btn.classList.add('active'); }
+  renderHoldings();
+}
+
+// =====================================================
+//  REBALANCE
+// =====================================================
+function renderRebalance() {
+  const tv=totalVal(), bc=byClass();
+  const cls4=['Stock','ETF','Bond','Crypto'];
+  const cols={Stock:'rgba(79,142,247,.85)',ETF:'rgba(0,229,160,.85)',Bond:'rgba(247,95,79,.85)',Crypto:'rgba(247,201,79,.85)'};
+  document.getElementById('tgtInputs').innerHTML = cls4.map(c=>`<div class="fg"><label>${c} Target %</label><input type="number" id="tgt_${c}" value="${targets[c]||0}" min="0" max="100" step="1"></div>`).join('');
+  const alerts=[];
+  cls4.forEach(c=>{
+    const cur=tv>0?((bc[c]||0)/tv*100):0, tgt=targets[c]||0, diff=cur-tgt;
+    if(diff>5) alerts.push({t:'warn',m:`<b>${c}</b> υπερ-εκτεθειμένο: ${cur.toFixed(1)}% vs στόχος ${tgt}% (+${diff.toFixed(1)}%)`});
+    else if(diff<-5) alerts.push({t:'ok',m:`<b>${c}</b> κάτω από στόχο: ${cur.toFixed(1)}% vs ${tgt}% — αγοράστε!`});
+  });
+  const tsum=cls4.reduce((s,c)=>s+(targets[c]||0),0);
+  if(Math.abs(tsum-100)>1) alerts.push({t:'danger',m:`Οι στόχοι αθροίζουν ${tsum}% (πρέπει 100%)`});
+  document.getElementById('rbAlerts').innerHTML=alerts.map(a=>`<div class="alert alert-${a.t}"><span>${a.t==='warn'?'⚠️':a.t==='danger'?'🚨':'✅'}</span><div>${a.m}</div></div>`).join('');
+  document.getElementById('rbRows').innerHTML=`<div style="display:flex;gap:0.7rem;padding:0.35rem 0;border-bottom:1px solid var(--border);margin-bottom:0.4rem;font-size:0.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;">
+    <div style="width:140px">Class</div><div style="flex:1">Bar</div><div style="width:48px;text-align:right">Τρέχ.</div><div style="width:48px;text-align:right">Στόχος</div><div style="width:58px;text-align:right">Διαφ.</div></div>`
+    +cls4.map(c=>{
+      const v=bc[c]||0, cur=tv>0?(v/tv*100):0, tgt=targets[c]||0, diff=cur-tgt;
+      return `<div style="display:flex;align-items:center;gap:0.7rem;padding:0.5rem 0;border-bottom:1px solid rgba(30,36,48,.35);font-size:0.7rem;">
+        <div style="width:140px;font-weight:500;"><span class="bk bk-${c.toLowerCase()}">${c}</span> <span style="font-size:0.63rem;color:var(--muted);">${f0(v)}</span></div>
+        <div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;"><div style="width:${Math.min(cur,100).toFixed(1)}%;height:100%;background:${cols[c]};border-radius:3px;"></div></div>
+        <div style="width:48px;text-align:right;font-family:'Syne',sans-serif;font-weight:600;">${cur.toFixed(1)}%</div>
+        <div style="width:48px;text-align:right;color:var(--muted);">${tgt}%</div>
+        <div style="width:58px;text-align:right;" class="${diff>0?'neg':'pos'}">${diff>0?'▲':'▼'} ${Math.abs(diff).toFixed(1)}%</div>
+      </div>`;
+    }).join('');
+  const co={responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'bottom',labels:{padding:10,usePointStyle:true,font:{size:10}}}}};
+  mkChart('rbCurChart',{type:'doughnut',data:{labels:cls4,datasets:[{data:cls4.map(c=>bc[c]||0),backgroundColor:cls4.map(c=>cols[c]),borderColor:'#0a0c10',borderWidth:2}]},options:{...co,plugins:{...co.plugins,tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${(ctx.parsed/tv*100).toFixed(1)}%`}}}}});
+  mkChart('rbTgtChart',{type:'doughnut',data:{labels:cls4,datasets:[{data:cls4.map(c=>targets[c]||0),backgroundColor:cls4.map(c=>cols[c]),borderColor:'#0a0c10',borderWidth:2}]},options:{...co,plugins:{...co.plugins,tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.parsed}%`}}}}});
+}
+function saveTargets(){
+  const cls4=['Stock','ETF','Bond','Crypto'];
+  const sum=cls4.reduce((s,c)=>s+(parseFloat(document.getElementById('tgt_'+c).value)||0),0);
+  if(Math.abs(sum-100)>0.5){toast(`Σύνολο: ${sum.toFixed(1)}% ≠ 100%`, true);return;}
+  cls4.forEach(c=>{targets[c]=parseFloat(document.getElementById('tgt_'+c).value)||0;});
+  save(); renderRebalance(); toast('✓ Στόχοι αποθηκεύτηκαν!');
+}
+
+// =====================================================
+//  DIVIDENDS
+// =====================================================
+function renderDividends() {
+  const data = getComputedHoldings().filter(h=>h.div>0).sort((a,b)=>b.div-a.div);
+  const logDivs = logEntries.filter(e=>e.type==='Dividend');
+  const logDivTotal = logDivs.reduce((s,e)=>s+(parseFloat(e.price)||0),0);
+  const baseDivTotal = getComputedHoldings().reduce((s,h)=>s+(BASE_DIVS[h.sym]||0),0);
+  const allDivs = baseDivTotal + logDivTotal;
+  const ti = totalInv();
+  document.getElementById('divKpi').innerHTML=`
+    <div class="kpi" style="--kl:var(--accent3)"><div class="kpi-lbl">Σύνολο Dividends</div><div class="kpi-val" style="color:var(--accent3)">${f2(allDivs)}</div><div class="kpi-sub">${logDivs.length} νέες καταχωρήσεις</div></div>
+    <div class="kpi" style="--kl:var(--accent)"><div class="kpi-lbl">Yield on Cost</div><div class="kpi-val">${ti>0?(allDivs/ti*100).toFixed(2):0}%</div><div class="kpi-sub">Επί επενδυμένου</div></div>
+    <div class="kpi" style="--kl:var(--accent2)"><div class="kpi-lbl">Μηνιαίο Μ.Ο.</div><div class="kpi-val">${f0(allDivs/24)}</div><div class="kpi-sub">~2 χρόνια</div></div>
+    <div class="kpi" style="--kl:var(--green)"><div class="kpi-lbl">Assets με Dividends</div><div class="kpi-val">${data.length}</div><div class="kpi-sub">Από ${holdings.length} θέσεις</div></div>
+  `;
+  document.getElementById('divBody').innerHTML=data.map(h=>`<tr>
+    <td style="font-weight:500">${h.name}</td>
+    <td><span class="bk bk-${h.cls.toLowerCase()}">${h.cls}</span></td>
+    <td>${f0(h.inv)}</td>
+    <td style="color:var(--accent3);font-family:'Syne',sans-serif;font-weight:600;">${f2(h.div)}</td>
+    <td class="pos">${h.inv>0?(h.div/h.inv*100).toFixed(2):0}%</td>
+  </tr>`).join('');
+  mkChart('divChart',{type:'bar',data:{labels:data.slice(0,10).map(h=>h.sym),datasets:[{label:'Dividends',data:data.slice(0,10).map(h=>h.div),backgroundColor:'rgba(247,201,79,.72)',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'€'+ctx.parsed.y.toFixed(2)}}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{grid:{color:'rgba(30,36,48,.6)'},ticks:{callback:v=>'€'+v,font:{size:9}}}}}});
+  // Dividend log view (from unified log)
+  document.getElementById('divLogView').innerHTML=logDivs.length>0
+    ? logDivs.map(e=>`<tr><td style="color:var(--muted)">${fd(e.date)}</td><td style="font-weight:500">${e.asset}</td><td style="color:var(--muted)">${e.platform}</td><td style="color:var(--accent3);font-family:'Syne',sans-serif;font-weight:600;">€${(parseFloat(e.price)||0).toFixed(2)}</td></tr>`).join('')
+    : '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:1.5rem;">Πρόσθεσε dividends από το 📋 LOG tab</td></tr>';
+}
+
+// =====================================================
+//  PERFORMANCE
+// =====================================================
+function renderPerformance() {
+  const tv=totalVal(),ti=totalInv();
+  document.getElementById('pfCurVal').textContent=f0(tv);
+  document.getElementById('pfCurRoi').textContent=fp(ti>0?(tv-ti)/ti*100:0)+' ROI';
+  document.getElementById('perfSnaps').innerHTML=PERF_SNAPS.map(s=>`<div class="pr"><div class="pr-d">${s.label}</div><div class="pr-v">${f0(s.val)}</div><div class="pr-bw"><div class="pr-bf" style="width:${(s.val/110367*100).toFixed(0)}%"></div></div><div class="pr-r pos">${fp((s.val-43805)/43805*100)}</div></div>`).join('');
+  mkChart('histChart',{type:'bar',data:{labels:PERF_SNAPS.map(s=>s.label),datasets:[{data:PERF_SNAPS.map((s,i)=>s.val),backgroundColor:PERF_SNAPS.map((s,i)=>i===PERF_SNAPS.length-1?'rgba(0,229,160,.85)':'rgba(79,142,247,.48)'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'€'+ctx.parsed.y.toLocaleString('el-GR')}}},scales:{x:{grid:{display:false},ticks:{font:{size:8},maxRotation:45}},y:{grid:{color:'rgba(30,36,48,.6)'},ticks:{callback:v=>'€'+(v/1000).toFixed(0)+'k',font:{size:9}}}}}});
+  mkChart('platChart',{type:'bar',data:{labels:['Freedom24','Piraeus Sec','Crypto','Trade Rep.','Bonds'],datasets:[{data:[3270,72894,23203,9951,11000],backgroundColor:['rgba(79,142,247,.8)','rgba(0,229,160,.8)','rgba(247,201,79,.8)','rgba(168,122,239,.8)','rgba(247,95,79,.8)'],borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{grid:{color:'rgba(30,36,48,.6)'},ticks:{callback:v=>'€'+(v/1000).toFixed(0)+'k',font:{size:9}}}}}});
+}
+
+// =====================================================
+//  PLAN
+// =====================================================
+function renderPlan() {
+  const done=PLAN_DATA.filter(m=>m.done).length, tot=PLAN_DATA.length;
+  document.getElementById('planProg').innerHTML=`<div style="display:flex;align-items:center;gap:0.9rem;"><span style="font-size:0.68rem;color:var(--muted);">Πρόοδος: ${done}/${tot} μήνες</span><div class="pw" style="flex:1;"><div class="pb"><div class="pf" style="width:${(done/tot*100).toFixed(0)}%;background:var(--accent);"></div></div><span style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.8rem;color:var(--accent);">${(done/tot*100).toFixed(0)}%</span></div></div>`;
+  document.getElementById('planContent').innerHTML=PLAN_DATA.map(m=>{
+    const mt=m.items.reduce((s,i)=>s+i.total,0);
+    return `<div class="pm"><div class="pm-title"><span>${m.done?'✅':'📅'} ${m.month}</span><span style="font-size:0.63rem;color:var(--accent3);background:rgba(247,201,79,.09);padding:0.13rem 0.48rem;border-radius:3px;">€${mt.toFixed(0)}</span></div>
+    <table><thead><tr><th>Platform</th><th>Asset</th><th>Τεμ.</th><th>Est. €</th><th>Σύνολο</th><th>Status</th></tr></thead>
+    <tbody>${m.items.map(it=>`<tr><td style="color:var(--muted)">${it.broker}</td><td style="font-weight:500">${it.asset}</td><td>${it.qty}</td><td>€${it.price.toFixed(2)}</td><td style="font-family:'Syne',sans-serif;font-weight:600;">€${it.total.toFixed(0)}</td><td><span class="tag ${it.done?'tag-done':'tag-pend'}">${it.done?'DONE':'PENDING'}</span></td></tr>`).join('')}</tbody></table></div>`;
+  }).join('');
+}
+
+// =====================================================
+//  LOG — UNIFIED (key fix)
+// =====================================================
+function typeChanged() {
+  const t = document.getElementById('lType').value;
+  document.getElementById('lSharesLbl').textContent = t==='Dividend' ? 'Τεμάχια (0 αν δ/υ)' : 'Τεμάχια';
+  document.getElementById('lPriceLbl').textContent = t==='Dividend' ? 'Ποσό Dividend (€)' : 'Τιμή ανά τεμ. (€)';
+  updatePreview();
+}
+function updatePreview() {
+  const t=document.getElementById('lType').value;
+  const sh=parseFloat(document.getElementById('lShares').value)||0;
+  const pr=parseFloat(document.getElementById('lPrice').value)||0;
+  const total = t==='Dividend' ? pr : sh*pr;
+  const prev=document.getElementById('entryPreview');
+  if(total>0){
+    prev.style.display='block';
+    document.getElementById('previewTotal').textContent=f2(total);
+    document.getElementById('previewNote').textContent=t==='Dividend'?`Dividend: €${pr.toFixed(2)}`:t==='Buy'?`Αγορά: ${sh} τεμ. × €${pr.toFixed(2)}`:t==='Sell'?`Πώληση: ${sh} τεμ. × €${pr.toFixed(2)}`:'';
+  } else {
+    prev.style.display='none';
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('lShares').addEventListener('input',updatePreview);
+  document.getElementById('lPrice').addEventListener('input',updatePreview);
+});
+
+function addEntry() {
+  const asset = document.getElementById('lAsset').value.trim();
+  if (!asset) { toast('Βάλε όνομα asset!', true); return; }
+  const type = document.getElementById('lType').value;
+  const shares = parseFloat(document.getElementById('lShares').value) || 0;
+  const price = parseFloat(document.getElementById('lPrice').value) || 0;
+  if (type !== 'Corporate' && price <= 0) { toast('Βάλε τιμή/ποσό!', true); return; }
+  if ((type === 'Buy' || type === 'Sell') && shares <= 0) { toast('Βάλε αριθμό τεμαχίων!', true); return; }
+  const entry = {
+    id: Date.now(),
+    date: document.getElementById('lDate').value || new Date().toISOString().slice(0,10),
+    asset,
+    sym: asset.toUpperCase(),
+    type,
+    cls: document.getElementById('lCls').value,
+    mkt: document.getElementById('lMkt').value,
+    platform: document.getElementById('lPlatform').value,
+    shares,
+    price,
+    note: document.getElementById('lNote').value,
+  };
+  logEntries.unshift(entry);
+  save();
+  renderLog();
+
+  // Immediate visual feedback
+  const typeLabel = {Buy:'Αγορά',Sell:'Πώληση',Dividend:'Dividend',Corporate:'Corporate Action'}[type];
+  const totalAmt = type==='Dividend' ? price : shares*price;
+  toast(`✓ ${typeLabel} καταχωρήθηκε: ${asset} — €${totalAmt.toFixed(2)}\nΌλα τα tabs ενημερώθηκαν!`);
+
+  // Clear form
+  document.getElementById('lAsset').value='';
+  document.getElementById('lShares').value='';
+  document.getElementById('lPrice').value='';
+  document.getElementById('lNote').value='';
+  document.getElementById('entryPreview').style.display='none';
+}
+
+function deleteEntry(id) {
+  logEntries = logEntries.filter(e=>e.id!==id);
+  save(); renderLog();
+  toast('Εγγραφή διαγράφτηκε.');
+}
+
+function filterLog(f, btn) {
+  logFilter = f;
+  document.querySelectorAll('#logTabs .itab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderLog();
+}
+
+function renderLog() {
+  const data = logFilter==='all' ? logEntries : logEntries.filter(e=>e.type===logFilter);
+  const typeClass = {Buy:'bk-buy',Sell:'bk-sell',Dividend:'bk-dividend',Corporate:'bk-corporate'};
+  document.getElementById('logBody').innerHTML = data.length===0
+    ? `<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:2rem;">
+        ${logFilter==='all'?'Δεν υπάρχουν εγγραφές ακόμα. Πρόσθεσε την πρώτη αγορά ή dividend!':
+        'Δεν υπάρχουν εγγραφές αυτού του τύπου.'}</td></tr>`
+    : data.map(e=>{
+        const tot = e.type==='Dividend' ? parseFloat(e.price)||0 : (parseFloat(e.shares)||0)*(parseFloat(e.price)||0);
+        return `<tr>
+          <td style="color:var(--muted)">${fd(e.date)}</td>
+          <td style="font-weight:500">${e.asset}</td>
+          <td><span class="bk ${typeClass[e.type]||'bk-etf'}">${e.type}</span></td>
+          <td><span class="bk bk-${(e.cls||'stock').toLowerCase()}">${e.cls||'—'}</span></td>
+          <td style="color:var(--muted)">${e.platform||'—'}</td>
+          <td>${e.type==='Dividend'?'—':Number(e.shares||0).toLocaleString('el-GR')}</td>
+          <td>€${(parseFloat(e.price)||0).toFixed(e.type==='Dividend'?2:pd(e.price))}</td>
+          <td style="font-family:'Syne',sans-serif;font-weight:600;">${e.type==='Dividend'?'<span style=color:var(--accent3)>div</span>':''} €${tot.toFixed(2)}</td>
+          <td style="color:var(--muted);font-size:0.65rem;">${e.note||''}</td>
+          <td><button class="btn btn-red btn-sm" onclick="deleteEntry(${e.id})">✕</button></td>
+        </tr>`;
+      }).join('');
+
+  // Summary bar
+  const buys = logEntries.filter(e=>e.type==='Buy').reduce((s,e)=>s+(parseFloat(e.shares)||0)*(parseFloat(e.price)||0),0);
+  const sells = logEntries.filter(e=>e.type==='Sell').reduce((s,e)=>s+(parseFloat(e.shares)||0)*(parseFloat(e.price)||0),0);
+  const divs = logEntries.filter(e=>e.type==='Dividend').reduce((s,e)=>s+(parseFloat(e.price)||0),0);
+  document.getElementById('logSumm').innerHTML = logEntries.length>0
+    ? `Σύνολο: ${logEntries.length} εγγραφές | Αγορές: <span style="color:var(--accent)">${f2(buys)}</span> | Πωλήσεις: <span style="color:var(--warn)">${f2(sells)}</span> | Dividends: <span style="color:var(--accent3)">${f2(divs)}</span>` : '';
+}
+
+// =====================================================
+//  BACKUP / EXPORT / IMPORT
+// =====================================================
+function updateHdrInfo() {
+  document.getElementById('bkDate').textContent = lastBackup ? fd(lastBackup) : '—';
+  document.getElementById('prDate').textContent = lastPriceUpdate ? fd(lastPriceUpdate) : '—';
+}
+
+function exportJSON() {
+  const payload = {version:3, exported:new Date().toISOString(), holdings, logEntries, priceLog, targets, backupHistory};
+  const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`InvestTrack_backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+  lastBackup=new Date().toISOString();
+  localStorage.setItem('pt_lastBackup',lastBackup);
+  backupHistory.unshift({date:lastBackup,type:'JSON',log:logEntries.length,holdings:holdings.length,prices:priceLog.length});
+  save(); updateHdrInfo(); renderBackup();
+  toast('✓ JSON backup αποθηκεύτηκε! Ανέβασέ το στο Google Drive.');
+}
+
+function exportCSV(type) {
+  let rows, fn;
+  if (type==='holdings') {
+    rows=[['Asset','Symbol','Class','Market','Shares','Avg Buy','Current Price','Invested','Current Value','P/L','ROI%','Dividends'],
+      ...getComputedHoldings().map(h=>[h.name,h.sym,h.cls,h.mkt,h.shares,h.avg.toFixed(4),h.cur.toFixed(4),h.inv.toFixed(2),h.val.toFixed(2),h.pl.toFixed(2),h.roi.toFixed(2),(h.div||0).toFixed(2)])];
+    fn=`InvestTrack_Holdings_${new Date().toISOString().slice(0,10)}.csv`;
+  } else {
+    rows=[['date','asset','type','class','market','platform','shares','price','note'],
+      ...logEntries.map(e=>[e.date,e.asset,e.type,e.cls,e.mkt||'',e.platform,e.shares,e.price,e.note||''])];
+    fn=`InvestTrack_Log_${new Date().toISOString().slice(0,10)}.csv`;
+  }
+  const csv=rows.map(r=>r.map(v=>typeof v==='string'&&(v.includes(',')||v.includes('"'))?`"${v.replace(/"/g,'""')}"`:v).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fn; a.click();
+  toast('✓ CSV αποθηκεύτηκε!');
+}
+
+function exportExcel() {
+  if(typeof XLSX==='undefined'){toast('XLSX library δεν φορτώθηκε', true);return;}
+  const wb=XLSX.utils.book_new();
+  const tv=totalVal(),ti=totalInv();
+  // 1. Overview
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['InvestTrack Portfolio Report'],['Date',new Date().toLocaleDateString('el-GR')],[''],['Total Value (€)',tv.toFixed(2)],['Total Invested (€)',ti.toFixed(2)],['P/L (€)',(tv-ti).toFixed(2)],['ROI %',((tv-ti)/ti*100).toFixed(2)+'%'],['Total Dividends (€)',totalDiv().toFixed(2)],['Positions',holdings.length]]),'Overview');
+  // 2. Holdings
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Asset','Symbol','Class','Market','Shares','Avg Buy','Current Price','Invested (€)','Current Value (€)','P/L (€)','ROI %','Dividends (€)'],...getComputedHoldings().map(h=>[h.name,h.sym,h.cls,h.mkt,h.shares,h.avg,h.cur,h.inv,h.val,h.pl,h.roi,h.div||0])]),'Holdings');
+  // 3. By Class
+  const bc=byClass();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Asset Class','Value (€)','Weight %','Target %','Diff'],
+    ...['Stock','ETF','Bond','Crypto'].map(c=>{const v=bc[c]||0,w=tv>0?v/tv*100:0;return[c,v.toFixed(2),(w).toFixed(2)+'%',(targets[c]||0)+'%',((w)-(targets[c]||0)).toFixed(2)+'%'];})]),'By Class');
+  // 4. Transaction Log
+  if(logEntries.length>0) XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Date','Asset','Type','Class','Market','Platform','Shares','Price','Total','Note'],...logEntries.map(e=>[e.date,e.asset,e.type,e.cls,e.mkt||'',e.platform,e.shares,e.price,e.type==='Dividend'?e.price:(e.shares||0)*(e.price||0),e.note||''])]),'Transaction Log');
+  // 5. Dividends
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Asset','Class','Invested (€)','Dividends (€)','Yield on Cost'],...getComputedHoldings().filter(h=>h.div>0).map(h=>[h.name,h.cls,h.inv.toFixed(2),h.div.toFixed(2),(h.inv>0?(h.div/h.inv*100).toFixed(2):0)+'%'])]),'Dividends');
+  // 6. Performance
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Period','Value (€)','ROI from Base (43,805€)'],...PERF_SNAPS.map(s=>[s.label,s.val,((s.val-43805)/43805*100).toFixed(2)+'%'])]),'Performance');
+  // 7. Investment Plan
+  const planRows=[['Month','Done','Asset','Broker','Qty','Est Price (€)','Est Total (€)']];
+  PLAN_DATA.forEach(m=>m.items.forEach(it=>planRows.push([m.month,m.done?'YES':'NO',it.asset,it.broker,it.qty,it.price,it.total])));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(planRows),'Investment Plan');
+  // 8. Rebalancing
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Asset Class','Current Value (€)','Current %','Target %','Difference'],...['Stock','ETF','Bond','Crypto'].map(c=>{const v=bc[c]||0,w=tv>0?v/tv*100:0;return[c,v.toFixed(2),(w).toFixed(2)+'%',(targets[c]||0)+'%',((w)-(targets[c]||0)).toFixed(2)+'%'];})]),'Rebalancing');
+
+  XLSX.writeFile(wb,`InvestTrack_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('✓ Excel report με 8 sheets αποθηκεύτηκε!');
+}
+
+function importJSON(input) {
+  const file=input.files[0]; if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const d=JSON.parse(e.target.result);
+      if(!confirm('⚠️ Αντικατάσταση ΟΛΩΝ των δεδομένων με το backup;'))return;
+      if(d.holdings)holdings=d.holdings;
+      if(d.logEntries)logEntries=d.logEntries;
+      if(d.priceLog)priceLog=d.priceLog;
+      if(d.targets)targets=d.targets;
+      if(d.backupHistory)backupHistory=d.backupHistory;
+      save(); updateHdrInfo(); renderOverview();
+      toast('✓ Import επιτυχές! Τα δεδομένα αποκαταστάθηκαν.');
+    }catch(err){toast('Σφάλμα import: '+err.message, true);}
+  };
+  r.readAsText(file); input.value='';
+}
+
+function importCSV(input) {
+  const file=input.files[0]; if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const lines=e.target.result.split('\n').filter(l=>l.trim());
+    const hdr=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
+    let added=0;
+    for(let i=1;i<lines.length;i++){
+      const vals=lines[i].match(/(".*?"|[^,]+|(?<=,)(?=,)|(?<=,)$)/g)||lines[i].split(',');
+      const row={};hdr.forEach((h,j)=>row[h]=(vals[j]||'').replace(/^"|"$/g,'').trim());
+      if(row['asset']||row['name']){
+        const asset=row['asset']||row['name']||'';
+        logEntries.push({id:Date.now()+i,date:row['date']||new Date().toISOString().slice(0,10),asset,sym:asset.toUpperCase(),type:row['type']||'Buy',cls:row['class']||'Stock',mkt:row['market']||row['mkt']||'',platform:row['platform']||'',shares:parseFloat(row['shares'])||0,price:parseFloat(row['price'])||0,note:row['note']||''});
+        added++;
+      }
+    }
+    save(); renderLog(); renderBackup();
+    toast(`✓ Προστέθηκαν ${added} εγγραφές από CSV!`);
+  };
+  r.readAsText(file); input.value='';
+}
+
+function renderBackup() {
+  document.getElementById('bkHistBody').innerHTML=backupHistory.slice(0,15).map(b=>`<tr>
+    <td style="color:var(--muted)">${fd(b.date)}</td>
+    <td><span class="bk bk-etf">${b.type}</span></td>
+    <td>${b.log}</td><td>${b.holdings}</td><td>${b.prices}</td>
+  </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem;">Κανένα backup ακόμα</td></tr>';
+}
+
+function clearAll() {
+  if(!confirm('⚠️ Διαγραφή ΟΛΩΝ των δεδομένων;'))return;
+  if(!confirm('Τελευταία ευκαιρία! Κάνε export πρώτα. Συνέχεια;'))return;
+  holdings=JSON.parse(JSON.stringify(BASE_HOLDINGS));
+  logEntries=[];priceLog=[];backupHistory=[];targets={...DEFAULT_TARGETS};
+  save(); toast('Διαγράφηκαν. Τιμές στα αρχικά.'); location.reload();
+}
+
+// =====================================================
+//  INIT
+// =====================================================
+Chart.defaults.color='#6b7891';
+Chart.defaults.borderColor='#1e2430';
+Chart.defaults.font.family="'DM Mono', monospace";
+
+initState();
+document.getElementById('lDate').value=new Date().toISOString().slice(0,10);
+updateHdrInfo();
+renderOverview();
+</script>
+</body>
+</html>
